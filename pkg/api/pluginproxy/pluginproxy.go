@@ -10,7 +10,7 @@ import (
 	"github.com/grafana/grafana/pkg/setting"
 
 	"github.com/grafana/grafana/pkg/bus"
-	"github.com/grafana/grafana/pkg/infra/log"
+	"github.com/grafana/grafana/pkg/log"
 	m "github.com/grafana/grafana/pkg/models"
 	"github.com/grafana/grafana/pkg/plugins"
 	"github.com/grafana/grafana/pkg/util"
@@ -129,6 +129,11 @@ func NewApiPluginProxy(ctx *m.ReqContext, proxyPath string, route *plugins.AppPl
 			req.URL.Host = targetURL.Host
 			req.Host = targetURL.Host
 			req.URL.Path = util.JoinURLFragments(targetURL.Path, proxyPath)
+
+			if err != nil {
+				ctx.JsonApiErr(500, "Could not interpolate plugin route url", err)
+				return
+			}
 		}
 
 		// reqBytes, _ := httputil.DumpRequestOut(req, true);

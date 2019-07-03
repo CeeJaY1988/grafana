@@ -14,7 +14,6 @@ func Wrap(message string, err error) error {
 	if err == nil {
 		return nil
 	}
-
 	return xerrors.Errorf("%v: %w", message, err)
 }
 

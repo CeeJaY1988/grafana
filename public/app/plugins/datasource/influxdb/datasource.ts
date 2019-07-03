@@ -2,16 +2,11 @@ import _ from 'lodash';
 
 import * as dateMath from '@grafana/ui/src/utils/datemath';
 import InfluxSeries from './influx_series';
-import InfluxQueryModel from './influx_query_model';
+import InfluxQuery from './influx_query';
 import ResponseParser from './response_parser';
 import { InfluxQueryBuilder } from './query_builder';
-import { DataSourceApi, DataSourceInstanceSettings } from '@grafana/ui';
-import { InfluxQuery, InfluxOptions } from './types';
-import { BackendSrv } from 'app/core/services/backend_srv';
-import { TemplateSrv } from 'app/features/templating/template_srv';
-import { IQService } from 'angular';
 
-export default class InfluxDatasource extends DataSourceApi<InfluxQuery, InfluxOptions> {
+export default class InfluxDatasource {
   type: string;
   urls: any;
   username: string;
@@ -25,13 +20,7 @@ export default class InfluxDatasource extends DataSourceApi<InfluxQuery, InfluxO
   httpMode: string;
 
   /** @ngInject */
-  constructor(
-    instanceSettings: DataSourceInstanceSettings<InfluxOptions>,
-    private $q: IQService,
-    private backendSrv: BackendSrv,
-    private templateSrv: TemplateSrv
-  ) {
-    super(instanceSettings);
+  constructor(instanceSettings, private $q, private backendSrv, private templateSrv) {
     this.type = 'influxdb';
     this.urls = _.map(instanceSettings.url.split(','), url => {
       return url.trim();
@@ -43,10 +32,9 @@ export default class InfluxDatasource extends DataSourceApi<InfluxQuery, InfluxO
     this.database = instanceSettings.database;
     this.basicAuth = instanceSettings.basicAuth;
     this.withCredentials = instanceSettings.withCredentials;
-    const settingsData = instanceSettings.jsonData || ({} as InfluxOptions);
-    this.interval = settingsData.timeInterval;
-    this.httpMode = settingsData.httpMode || 'GET';
+    this.interval = (instanceSettings.jsonData || {}).timeInterval;
     this.responseParser = new ResponseParser();
+    this.httpMode = instanceSettings.jsonData.httpMode || 'GET';
   }
 
   query(options) {
@@ -67,7 +55,7 @@ export default class InfluxDatasource extends DataSourceApi<InfluxQuery, InfluxO
       // backward compatibility
       scopedVars.interval = scopedVars.__interval;
 
-      queryModel = new InfluxQueryModel(target, this.templateSrv, scopedVars);
+      queryModel = new InfluxQuery(target, this.templateSrv, scopedVars);
       return queryModel.render(true);
     }).reduce((acc, current) => {
       if (current !== '') {
@@ -182,14 +170,14 @@ export default class InfluxDatasource extends DataSourceApi<InfluxQuery, InfluxO
     return this._seriesQuery(interpolated, options).then(_.curry(this.responseParser.parse)(query));
   }
 
-  getTagKeys(options: any = {}) {
-    const queryBuilder = new InfluxQueryBuilder({ measurement: options.measurement || '', tags: [] }, this.database);
+  getTagKeys(options) {
+    const queryBuilder = new InfluxQueryBuilder({ measurement: '', tags: [] }, this.database);
     const query = queryBuilder.buildExploreQuery('TAG_KEYS');
     return this.metricFindQuery(query, options);
   }
 
-  getTagValues(options: any = {}) {
-    const queryBuilder = new InfluxQueryBuilder({ measurement: options.measurement || '', tags: [] }, this.database);
+  getTagValues(options) {
+    const queryBuilder = new InfluxQueryBuilder({ measurement: '', tags: [] }, this.database);
     const query = queryBuilder.buildExploreQuery('TAG_VALUES', options.key);
     return this.metricFindQuery(query, options);
   }

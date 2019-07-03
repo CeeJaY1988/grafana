@@ -17,7 +17,7 @@ class TablePanelCtrl extends MetricsPanelCtrl {
   table: any;
   renderer: any;
 
-  panelDefaults: any = {
+  panelDefaults = {
     targets: [{}],
     transform: 'timeseries_to_columns',
     pageSize: null,
@@ -95,11 +95,7 @@ class TablePanelCtrl extends MetricsPanelCtrl {
           range: this.range,
         })
         .then((anno: any) => {
-          this.loading = false;
-          this.dataRaw = anno;
-          this.pageIndex = 0;
-          this.render();
-          return { data: this.dataRaw }; // Not used
+          return { data: anno };
         });
     }
 
@@ -180,7 +176,7 @@ class TablePanelCtrl extends MetricsPanelCtrl {
   }
 
   link(scope: any, elem: JQuery, attrs: any, ctrl: TablePanelCtrl) {
-    let data: any;
+    let data;
     const panel = ctrl.panel;
     let pageCount = 0;
 
@@ -194,19 +190,19 @@ class TablePanelCtrl extends MetricsPanelCtrl {
       return panelHeight - 31 + 'px';
     }
 
-    function appendTableRows(tbodyElem: JQuery) {
+    function appendTableRows(tbodyElem) {
       ctrl.renderer.setTable(data);
       tbodyElem.empty();
       tbodyElem.html(ctrl.renderer.render(ctrl.pageIndex));
     }
 
-    function switchPage(e: any) {
+    function switchPage(e) {
       const el = $(e.currentTarget);
       ctrl.pageIndex = parseInt(el.text(), 10) - 1;
       renderPanel();
     }
 
-    function appendPaginationControls(footerElem: JQuery) {
+    function appendPaginationControls(footerElem) {
       footerElem.empty();
 
       const pageSize = panel.pageSize || 100;
@@ -251,7 +247,7 @@ class TablePanelCtrl extends MetricsPanelCtrl {
       selector: '[data-link-tooltip]',
     });
 
-    function addFilterClicked(e: any) {
+    function addFilterClicked(e) {
       const filterData = $(e.currentTarget).data();
       const options = {
         datasource: panel.datasource,
@@ -272,7 +268,7 @@ class TablePanelCtrl extends MetricsPanelCtrl {
       unbindDestroy();
     });
 
-    ctrl.events.on('render', (renderData: any) => {
+    ctrl.events.on('render', renderData => {
       data = renderData || data;
       if (data) {
         renderPanel();

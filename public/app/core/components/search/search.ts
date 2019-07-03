@@ -6,7 +6,6 @@ import { contextSrv } from 'app/core/services/context_srv';
 import appEvents from 'app/core/app_events';
 import { parse, SearchParserOptions, SearchParserResult } from 'search-query-parser';
 import { getDashboardSrv } from 'app/features/dashboard/services/DashboardSrv';
-
 export interface SearchQuery {
   query: string;
   parsedQuery: SearchParserResult;
@@ -33,11 +32,6 @@ class SearchQueryParser {
   }
 }
 
-interface SelectedIndicies {
-  dashboardIndex?: number;
-  folderIndex?: number;
-}
-
 interface OpenSearchParams {
   query?: string;
 }
@@ -59,7 +53,7 @@ export class SearchCtrl {
   queryParser: SearchQueryParser;
 
   /** @ngInject */
-  constructor($scope: any, private $location: any, private $timeout: any, private searchSrv: SearchSrv) {
+  constructor($scope, private $location, private $timeout, private searchSrv: SearchSrv) {
     appEvents.on('show-dash-search', this.openSearch.bind(this), $scope);
     appEvents.on('hide-dash-search', this.closeSearch.bind(this), $scope);
     appEvents.on('search-query', debounce(this.search.bind(this), 500), $scope);
@@ -173,7 +167,7 @@ export class SearchCtrl {
     }, 100);
   }
 
-  moveSelection(direction: number) {
+  moveSelection(direction) {
     if (this.results.length === 0) {
       return;
     }
@@ -259,14 +253,14 @@ export class SearchCtrl {
     return query.query === '' && query.starred === false && query.tags.length === 0;
   }
 
-  filterByTag(tag: string) {
+  filterByTag(tag) {
     if (_.indexOf(this.query.tags, tag) === -1) {
       this.query.tags.push(tag);
       this.search();
     }
   }
 
-  removeTag(tag: string, evt: any) {
+  removeTag(tag, evt) {
     this.query.tags = _.without(this.query.tags, tag);
     this.search();
     this.giveSearchFocus = true;
@@ -305,11 +299,14 @@ export class SearchCtrl {
     this.moveSelection(0);
   }
 
-  private getFlattenedResultForNavigation(): SelectedIndicies[] {
+  private getFlattenedResultForNavigation(): Array<{
+    folderIndex: number;
+    dashboardIndex: number;
+  }> {
     let folderIndex = 0;
 
-    return _.flatMap(this.results, (s: any) => {
-      let result: SelectedIndicies[] = [];
+    return _.flatMap(this.results, s => {
+      let result = [];
 
       result.push({
         folderIndex: folderIndex,

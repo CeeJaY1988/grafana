@@ -6,24 +6,12 @@ import { PanelCtrl } from 'app/features/panel/panel_ctrl';
 import { getExploreUrl } from 'app/core/utils/explore';
 import { applyPanelTimeOverrides, getResolution } from 'app/features/dashboard/utils/panel';
 import { ContextSrv } from 'app/core/services/context_srv';
-import {
-  toLegacyResponseData,
-  isSeriesData,
-  LegacyResponseData,
-  TimeRange,
-  DataSourceApi,
-  PanelData,
-  LoadingState,
-  DataQueryResponse,
-  SeriesData,
-} from '@grafana/ui';
+import { toLegacyResponseData, isSeriesData, LegacyResponseData, TimeRange } from '@grafana/ui';
 import { Unsubscribable } from 'rxjs';
-import { PanelModel } from 'app/features/dashboard/state';
-import { PanelQueryRunnerFormat } from '../dashboard/state/PanelQueryRunner';
 
 class MetricsPanelCtrl extends PanelCtrl {
   scope: any;
-  datasource: DataSourceApi;
+  datasource: any;
   $q: any;
   $timeout: any;
   contextSrv: ContextSrv;
@@ -36,11 +24,11 @@ class MetricsPanelCtrl extends PanelCtrl {
   resolution: any;
   timeInfo?: string;
   skipDataOnInit: boolean;
+  dataStream: any;
+  dataSubscription?: Unsubscribable;
   dataList: LegacyResponseData[];
-  querySubscription?: Unsubscribable;
-  dataFormat = PanelQueryRunnerFormat.legacy;
 
-  constructor($scope: any, $injector: any) {
+  constructor($scope, $injector) {
     super($scope, $injector);
 
     this.$q = $injector.get('$q');
@@ -56,9 +44,9 @@ class MetricsPanelCtrl extends PanelCtrl {
   }
 
   private onPanelTearDown() {
-    if (this.querySubscription) {
-      this.querySubscription.unsubscribe();
-      this.querySubscription = null;
+    if (this.dataSubscription) {
+      this.dataSubscription.unsubscribe();
+      this.dataSubscription = null;
     }
   }
 
@@ -84,91 +72,47 @@ class MetricsPanelCtrl extends PanelCtrl {
       });
     }
 
+    // // ignore if we have data stream
+    if (this.dataStream) {
+      return;
+    }
+
     // clear loading/error state
     delete this.error;
     this.loading = true;
 
     // load datasource service
-    return (
-      this.datasourceSrv
-        .get(this.panel.datasource, this.panel.scopedVars)
-        .then(this.updateTimeRange.bind(this))
-        .then(this.issueQueries.bind(this))
-        // NOTE handleQueryResult is called by panelDataObserver
-        .catch((err: any) => {
-          this.processDataError(err);
-        })
-    );
-  }
+    this.datasourceSrv
+      .get(this.panel.datasource, this.panel.scopedVars)
+      .then(this.updateTimeRange.bind(this))
+      .then(this.issueQueries.bind(this))
+      .then(this.handleQueryResult.bind(this))
+      .catch(err => {
+        // if canceled  keep loading set to true
+        if (err.cancelled) {
+          console.log('Panel request cancelled', err);
+          return;
+        }
 
-  processDataError(err: any) {
-    // if canceled  keep loading set to true
-    if (err.cancelled) {
-      console.log('Panel request cancelled', err);
-      return;
-    }
-
-    this.loading = false;
-    this.error = err.message || 'Request Error';
-    this.inspector = { error: err };
-
-    if (err.data) {
-      if (err.data.message) {
-        this.error = err.data.message;
-      }
-      if (err.data.error) {
-        this.error = err.data.error;
-      }
-    }
-
-    this.events.emit('data-error', err);
-    console.log('Panel data error:', err);
-  }
-
-  // Updates the response with information from the stream
-  panelDataObserver = {
-    next: (data: PanelData) => {
-      if (data.state === LoadingState.Error) {
         this.loading = false;
-        this.processDataError(data.error);
-        return;
-      }
+        this.error = err.message || 'Request Error';
+        this.inspector = { error: err };
 
-      this.loading = false;
-
-      if (data.request) {
-        const { range, timeInfo } = data.request;
-        if (range) {
-          this.range = range;
-        }
-        if (timeInfo) {
-          this.timeInfo = timeInfo;
-        }
-      }
-
-      if (this.dataFormat === PanelQueryRunnerFormat.legacy) {
-        // The result should already be processed, but just in case
-        if (!data.legacy) {
-          data.legacy = data.series.map(v => {
-            if (isSeriesData(v)) {
-              return toLegacyResponseData(v);
-            }
-            return v;
-          });
+        if (err.data) {
+          if (err.data.message) {
+            this.error = err.data.message;
+          }
+          if (err.data.error) {
+            this.error = err.data.error;
+          }
         }
 
-        // Make the results look like they came directly from a <6.2 datasource request
-        // NOTE: any object other than 'data' is no longer supported supported
-        this.handleQueryResult({
-          data: data.legacy,
-        });
-      } else {
-        this.handleSeriesData(data.series);
-      }
-    },
-  };
+        this.events.emit('data-error', err);
+        console.log('Panel data error:', err);
+      });
+  }
 
-  updateTimeRange(datasource?: DataSourceApi) {
+  updateTimeRange(datasource?) {
     this.datasource = datasource || this.datasource;
     this.range = this.timeSrv.timeRange();
     this.resolution = getResolution(this.panel);
@@ -197,43 +141,45 @@ class MetricsPanelCtrl extends PanelCtrl {
     this.intervalMs = res.intervalMs;
   }
 
-  issueQueries(datasource: DataSourceApi) {
+  issueQueries(datasource) {
     this.datasource = datasource;
 
-    const panel = this.panel as PanelModel;
-    const queryRunner = panel.getQueryRunner();
-
-    if (!this.querySubscription) {
-      this.querySubscription = queryRunner.subscribe(this.panelDataObserver, this.dataFormat);
+    if (!this.panel.targets || this.panel.targets.length === 0) {
+      return this.$q.when([]);
     }
 
-    return queryRunner.run({
-      datasource: panel.datasource,
-      queries: panel.targets,
-      panelId: panel.id,
-      dashboardId: this.dashboard.id,
-      timezone: this.dashboard.timezone,
-      timeRange: this.range,
-      widthPixels: this.resolution, // The pixel width
-      maxDataPoints: panel.maxDataPoints,
-      minInterval: panel.interval,
-      scopedVars: panel.scopedVars,
-      cacheTimeout: panel.cacheTimeout,
+    // make shallow copy of scoped vars,
+    // and add built in variables interval and interval_ms
+    const scopedVars = Object.assign({}, this.panel.scopedVars, {
+      __interval: { text: this.interval, value: this.interval },
+      __interval_ms: { text: this.intervalMs, value: this.intervalMs },
     });
+
+    const metricsQuery = {
+      timezone: this.dashboard.getTimezone(),
+      panelId: this.panel.id,
+      dashboardId: this.dashboard.id,
+      range: this.range,
+      rangeRaw: this.range.raw,
+      interval: this.interval,
+      intervalMs: this.intervalMs,
+      targets: this.panel.targets,
+      maxDataPoints: this.resolution,
+      scopedVars: scopedVars,
+      cacheTimeout: this.panel.cacheTimeout,
+    };
+
+    return datasource.query(metricsQuery);
   }
 
-  handleSeriesData(data: SeriesData[]) {
+  handleQueryResult(result) {
     this.loading = false;
 
-    if (this.dashboard && this.dashboard.snapshot) {
-      this.panel.snapshotData = data;
+    // check for if data source returns subject
+    if (result && result.subscribe) {
+      this.handleDataStream(result);
+      return;
     }
-
-    // Subclasses that asked for SeriesData will override
-  }
-
-  handleQueryResult(result: DataQueryResponse) {
-    this.loading = false;
 
     if (this.dashboard.snapshot) {
       this.panel.snapshotData = result.data;
@@ -244,7 +190,47 @@ class MetricsPanelCtrl extends PanelCtrl {
       result = { data: [] };
     }
 
-    this.events.emit('data-received', result.data);
+    // Some data is not an array (like table annotations)
+    if (!Array.isArray(result.data)) {
+      this.events.emit('data-received', result.data);
+      return;
+    }
+
+    // Make sure the data is TableData | TimeSeries
+    const data = result.data.map(v => {
+      if (isSeriesData(v)) {
+        return toLegacyResponseData(v);
+      }
+      return v;
+    });
+    this.events.emit('data-received', data);
+  }
+
+  handleDataStream(stream) {
+    // if we already have a connection
+    if (this.dataStream) {
+      console.log('two stream observables!');
+      return;
+    }
+
+    this.dataStream = stream;
+    this.dataSubscription = stream.subscribe({
+      next: data => {
+        console.log('dataSubject next!');
+        if (data.range) {
+          this.range = data.range;
+        }
+        this.events.emit('data-received', data.data);
+      },
+      error: error => {
+        this.events.emit('data-error', error);
+        console.log('panel: observer got error');
+      },
+      complete: () => {
+        console.log('panel: observer got complete');
+        this.dataStream = null;
+      },
+    });
   }
 
   getAdditionalMenuItems() {

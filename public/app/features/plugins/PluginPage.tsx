@@ -5,9 +5,10 @@ import { connect } from 'react-redux';
 import find from 'lodash/find';
 
 // Types
-import { UrlQueryMap } from '@grafana/runtime';
-import { StoreState } from 'app/types';
+import { StoreState, UrlQueryMap } from 'app/types';
 import {
+  NavModel,
+  NavModelItem,
   PluginType,
   GrafanaPlugin,
   PluginInclude,
@@ -18,7 +19,6 @@ import {
   AppPlugin,
   PluginIncludeType,
 } from '@grafana/ui';
-import { NavModel, NavModelItem } from '@grafana/data';
 
 import Page from 'app/core/components/Page/Page';
 import { getPluginSettings } from './PluginSettingsCache';
@@ -75,12 +75,12 @@ interface State {
   loading: boolean;
   plugin?: GrafanaPlugin;
   nav: NavModel;
-  defaultPage: string; // The first configured one or readme
+  defaultTab: string; // The first configured one or readme
 }
 
-const PAGE_ID_README = 'readme';
-const PAGE_ID_DASHBOARDS = 'dashboards';
-const PAGE_ID_CONFIG_CTRL = 'config';
+const TAB_ID_README = 'readme';
+const TAB_ID_DASHBOARDS = 'dashboards';
+const TAB_ID_CONFIG_CTRL = 'config';
 
 class PluginPage extends PureComponent<Props, State> {
   constructor(props: Props) {
@@ -88,7 +88,7 @@ class PluginPage extends PureComponent<Props, State> {
     this.state = {
       loading: true,
       nav: getLoadingNav(),
-      defaultPage: PAGE_ID_README,
+      defaultTab: TAB_ID_README,
     };
   }
 
@@ -104,17 +104,16 @@ class PluginPage extends PureComponent<Props, State> {
       });
       return; // 404
     }
-
     const { meta } = plugin;
-    let defaultPage: string;
-    const pages: NavModelItem[] = [];
 
+    let defaultTab: string;
+    const tabs: NavModelItem[] = [];
     if (true) {
-      pages.push({
+      tabs.push({
         text: 'Readme',
         icon: 'fa fa-fw fa-file-text-o',
-        url: `${appSubUrl}${path}?page=${PAGE_ID_README}`,
-        id: PAGE_ID_README,
+        url: `${appSubUrl}${path}?tab=${TAB_ID_README}`,
+        id: TAB_ID_README,
       });
     }
 
@@ -122,57 +121,57 @@ class PluginPage extends PureComponent<Props, State> {
     if (meta.type === PluginType.app) {
       // Legacy App Config
       if (plugin.angularConfigCtrl) {
-        pages.push({
+        tabs.push({
           text: 'Config',
           icon: 'gicon gicon-cog',
-          url: `${appSubUrl}${path}?page=${PAGE_ID_CONFIG_CTRL}`,
-          id: PAGE_ID_CONFIG_CTRL,
+          url: `${appSubUrl}${path}?tab=${TAB_ID_CONFIG_CTRL}`,
+          id: TAB_ID_CONFIG_CTRL,
         });
-        defaultPage = PAGE_ID_CONFIG_CTRL;
+        defaultTab = TAB_ID_CONFIG_CTRL;
       }
 
-      if (plugin.configPages) {
-        for (const page of plugin.configPages) {
-          pages.push({
-            text: page.title,
-            icon: page.icon,
-            url: `${appSubUrl}${path}?page=${page.id}`,
-            id: page.id,
+      if (plugin.configTabs) {
+        for (const tab of plugin.configTabs) {
+          tabs.push({
+            text: tab.title,
+            icon: tab.icon,
+            url: path + '?tab=' + tab.id,
+            id: tab.id,
           });
-          if (!defaultPage) {
-            defaultPage = page.id;
+          if (!defaultTab) {
+            defaultTab = tab.id;
           }
         }
       }
 
-      // Check for the dashboard pages
+      // Check for the dashboard tabs
       if (find(meta.includes, { type: 'dashboard' })) {
-        pages.push({
+        tabs.push({
           text: 'Dashboards',
           icon: 'gicon gicon-dashboard',
-          url: `${appSubUrl}${path}?page=${PAGE_ID_DASHBOARDS}`,
-          id: PAGE_ID_DASHBOARDS,
+          url: `${appSubUrl}${path}?tab=${TAB_ID_DASHBOARDS}`,
+          id: TAB_ID_DASHBOARDS,
         });
       }
     }
 
-    if (!defaultPage) {
-      defaultPage = pages[0].id; // the first tab
+    if (!defaultTab) {
+      defaultTab = tabs[0].id; // the first tab
     }
 
     const node = {
       text: meta.name,
       img: meta.info.logos.large,
       subTitle: meta.info.author.name,
-      breadcrumbs: [{ title: 'Plugins', url: appSubUrl + '/plugins' }],
+      breadcrumbs: [{ title: 'Plugins', url: '/plugins' }],
       url: `${appSubUrl}${path}`,
-      children: this.setActivePage(query.page as string, pages, defaultPage),
+      children: this.setActiveTab(query.tab as string, tabs, defaultTab),
     };
 
     this.setState({
       loading: false,
       plugin,
-      defaultPage,
+      defaultTab,
       nav: {
         node: node,
         main: node,
@@ -180,15 +179,15 @@ class PluginPage extends PureComponent<Props, State> {
     });
   }
 
-  setActivePage(pageId: string, pages: NavModelItem[], defaultPageId: string): NavModelItem[] {
+  setActiveTab(tabId: string, tabs: NavModelItem[], defaultTabId: string): NavModelItem[] {
     let found = false;
-    const selected = pageId || defaultPageId;
-    const changed = pages.map(p => {
-      const active = !found && selected === p.id;
+    const selected = tabId || defaultTabId;
+    const changed = tabs.map(tab => {
+      const active = !found && selected === tab.id;
       if (active) {
         found = true;
       }
-      return { ...p, active };
+      return { ...tab, active };
     });
     if (!found) {
       changed[0].active = true;
@@ -197,13 +196,13 @@ class PluginPage extends PureComponent<Props, State> {
   }
 
   componentDidUpdate(prevProps: Props) {
-    const prevPage = prevProps.query.page as string;
-    const page = this.props.query.page as string;
-    if (prevPage !== page) {
-      const { nav, defaultPage } = this.state;
+    const prevTab = prevProps.query.tab as string;
+    const tab = this.props.query.tab as string;
+    if (prevTab !== tab) {
+      const { nav, defaultTab } = this.state;
       const node = {
         ...nav.node,
-        children: this.setActivePage(page, nav.node.children, defaultPage),
+        children: this.setActiveTab(tab, nav.node.children, defaultTab),
       };
       this.setState({
         nav: {
@@ -225,21 +224,21 @@ class PluginPage extends PureComponent<Props, State> {
     const active = nav.main.children.find(tab => tab.active);
     if (active) {
       // Find the current config tab
-      if (plugin.configPages) {
-        for (const tab of plugin.configPages) {
+      if (plugin.configTabs) {
+        for (const tab of plugin.configTabs) {
           if (tab.id === active.id) {
-            return <tab.body plugin={plugin} query={query} />;
+            return <tab.body meta={plugin.meta} query={query} />;
           }
         }
       }
 
       // Apps have some special behavior
       if (plugin.meta.type === PluginType.app) {
-        if (active.id === PAGE_ID_DASHBOARDS) {
+        if (active.id === TAB_ID_DASHBOARDS) {
           return <PluginDashboards plugin={plugin.meta} />;
         }
 
-        if (active.id === PAGE_ID_CONFIG_CTRL && plugin.angularConfigCtrl) {
+        if (active.id === TAB_ID_CONFIG_CTRL && plugin.angularConfigCtrl) {
           return <AppConfigCtrlWrapper app={plugin as AppPlugin} />;
         }
       }

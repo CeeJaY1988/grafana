@@ -1,9 +1,8 @@
-import { ComponentType, ComponentClass } from 'react';
+import { ComponentClass } from 'react';
 import { TimeRange } from './time';
 import { PluginMeta, GrafanaPlugin } from './plugin';
 import { TableData, TimeSeries, SeriesData, LoadingState } from './data';
 import { PanelData } from './panel';
-import { LogRowModel } from './logs';
 
 // NOTE: this seems more general than just DataSource
 export interface DataSourcePluginOptionsEditorProps<TOptions> {
@@ -12,26 +11,20 @@ export interface DataSourcePluginOptionsEditorProps<TOptions> {
 }
 
 export class DataSourcePlugin<
-  DSType extends DataSourceApi<TQuery, TOptions>,
-  TQuery extends DataQuery = DataQuery,
-  TOptions extends DataSourceJsonData = DataSourceJsonData
+  TOptions extends DataSourceJsonData = DataSourceJsonData,
+  TQuery extends DataQuery = DataQuery
 > extends GrafanaPlugin<DataSourcePluginMeta> {
-  DataSourceClass: DataSourceConstructor<DSType, TQuery, TOptions>;
-  components: DataSourcePluginComponents<DSType, TQuery, TOptions>;
+  DataSourceClass: DataSourceConstructor<TQuery>;
+  components: DataSourcePluginComponents<TOptions, TQuery>;
 
-  constructor(DataSourceClass: DataSourceConstructor<DSType, TQuery, TOptions>) {
+  constructor(DataSourceClass: DataSourceConstructor<TQuery>) {
     super();
     this.DataSourceClass = DataSourceClass;
     this.components = {};
   }
 
-  setConfigEditor(editor: ComponentType<DataSourcePluginOptionsEditorProps<DataSourceSettings<TOptions>>>) {
+  setConfigEditor(editor: React.ComponentType<DataSourcePluginOptionsEditorProps<DataSourceSettings<TOptions>>>) {
     this.components.ConfigEditor = editor;
-    return this;
-  }
-
-  setConfigCtrl(ConfigCtrl: any) {
-    this.angularConfigCtrl = ConfigCtrl;
     return this;
   }
 
@@ -45,23 +38,13 @@ export class DataSourcePlugin<
     return this;
   }
 
-  setQueryEditor(QueryEditor: ComponentType<QueryEditorProps<DSType, TQuery, TOptions>>) {
+  setQueryEditor(QueryEditor: ComponentClass<QueryEditorProps<DataSourceApi, TQuery>>) {
     this.components.QueryEditor = QueryEditor;
     return this;
   }
 
-  setExploreQueryField(ExploreQueryField: ComponentClass<ExploreQueryFieldProps<DSType, TQuery, TOptions>>) {
+  setExploreQueryField(ExploreQueryField: ComponentClass<ExploreQueryFieldProps<DataSourceApi, TQuery>>) {
     this.components.ExploreQueryField = ExploreQueryField;
-    return this;
-  }
-
-  setExploreMetricsQueryField(ExploreQueryField: ComponentClass<ExploreQueryFieldProps<DSType, TQuery, TOptions>>) {
-    this.components.ExploreMetricsQueryField = ExploreQueryField;
-    return this;
-  }
-
-  setExploreLogsQueryField(ExploreQueryField: ComponentClass<ExploreQueryFieldProps<DSType, TQuery, TOptions>>) {
-    this.components.ExploreLogsQueryField = ExploreQueryField;
     return this;
   }
 
@@ -90,16 +73,14 @@ export class DataSourcePlugin<
 export interface DataSourcePluginMeta extends PluginMeta {
   builtIn?: boolean; // Is this for all
   metrics?: boolean;
+  tables?: boolean;
   logs?: boolean;
+  explore?: boolean;
   annotations?: boolean;
-  alerting?: boolean;
   mixed?: boolean;
   hasQueryHelp?: boolean;
-  category?: string;
   queryOptions?: PluginMetaQueryOptions;
   sort?: number;
-  streaming?: boolean;
-
   /**
    * By default, hidden queries are not passed to the datasource
    * Set this to true in plugin.json to have hidden queries passed to the
@@ -115,56 +96,30 @@ interface PluginMetaQueryOptions {
 }
 
 export interface DataSourcePluginComponents<
-  DSType extends DataSourceApi<TQuery, TOptions>,
-  TQuery extends DataQuery = DataQuery,
-  TOptions extends DataSourceJsonData = DataSourceJsonData
+  TOptions extends DataSourceJsonData = DataSourceJsonData,
+  TQuery extends DataQuery = DataQuery
 > {
   QueryCtrl?: any;
   AnnotationsQueryCtrl?: any;
   VariableQueryEditor?: any;
-  QueryEditor?: ComponentType<QueryEditorProps<DSType, TQuery, TOptions>>;
-  ExploreQueryField?: ComponentClass<ExploreQueryFieldProps<DSType, TQuery, TOptions>>;
-  ExploreMetricsQueryField?: ComponentClass<ExploreQueryFieldProps<DSType, TQuery, TOptions>>;
-  ExploreLogsQueryField?: ComponentClass<ExploreQueryFieldProps<DSType, TQuery, TOptions>>;
+  QueryEditor?: ComponentClass<QueryEditorProps<DataSourceApi, TQuery>>;
+  ExploreQueryField?: ComponentClass<ExploreQueryFieldProps<DataSourceApi, TQuery>>;
   ExploreStartPage?: ComponentClass<ExploreStartPageProps>;
-  ConfigEditor?: ComponentType<DataSourcePluginOptionsEditorProps<DataSourceSettings<TOptions>>>;
+  ConfigEditor?: React.ComponentType<DataSourcePluginOptionsEditorProps<DataSourceSettings<TOptions>>>;
 }
 
-// Only exported for tests
-export interface DataSourceConstructor<
-  DSType extends DataSourceApi<TQuery, TOptions>,
-  TQuery extends DataQuery = DataQuery,
-  TOptions extends DataSourceJsonData = DataSourceJsonData
-> {
-  new (instanceSettings: DataSourceInstanceSettings<TOptions>, ...args: any[]): DSType;
+export interface DataSourceConstructor<TQuery extends DataQuery = DataQuery> {
+  new (instanceSettings: DataSourceInstanceSettings, ...args: any[]): DataSourceApi<TQuery>;
 }
 
 /**
  * The main data source abstraction interface, represents an instance of a data source
  */
-export abstract class DataSourceApi<
-  TQuery extends DataQuery = DataQuery,
-  TOptions extends DataSourceJsonData = DataSourceJsonData
-> {
-  /**
-   *  Set in constructor
-   */
-  readonly name: string;
-
-  /**
-   *  Set in constructor
-   */
-  readonly id: number;
-
+export interface DataSourceApi<TQuery extends DataQuery = DataQuery> {
   /**
    *  min interval range
    */
   interval?: string;
-
-  constructor(instanceSettings: DataSourceInstanceSettings<TOptions>) {
-    this.name = instanceSettings.name;
-    this.id = instanceSettings.id;
-  }
 
   /**
    * Imports queries from a different datasource
@@ -179,12 +134,12 @@ export abstract class DataSourceApi<
   /**
    * Main metrics / data query action
    */
-  abstract query(options: DataQueryRequest<TQuery>, observer?: DataStreamObserver): Promise<DataQueryResponse>;
+  query(options: DataQueryRequest<TQuery>, observer?: DataStreamObserver): Promise<DataQueryResponse>;
 
   /**
    * Test & verify datasource settings & connection details
    */
-  abstract testDatasource(): Promise<any>;
+  testDatasource(): Promise<any>;
 
   /**
    *  Get hints for query improvements
@@ -197,65 +152,34 @@ export abstract class DataSourceApi<
   getQueryDisplayText?(query: TQuery): string;
 
   /**
-   * Retrieve context for a given log row
+   *  Set after constructor is called by Grafana
    */
-  getLogRowContext?: <TContextQueryOptions extends {}>(
-    row: LogRowModel,
-    options?: TContextQueryOptions
-  ) => Promise<DataQueryResponse>;
+  name?: string;
 
   /**
-   * Variable query action.
+   *  Set after constructor is called by Grafana
    */
-  metricFindQuery?(query: any, options?: any): Promise<MetricFindValue[]>;
-
-  /**
-   * Get tag keys for adhoc filters
-   */
-  getTagKeys?(options: any): Promise<MetricFindValue[]>;
-
-  /**
-   * Get tag values for adhoc filters
-   */
-  getTagValues?(options: any): Promise<MetricFindValue[]>;
+  id?: number;
 
   /**
    * Set after constructor call, as the data source instance is the most common thing to pass around
    * we attach the components to this instance for easy access
    */
-  components?: DataSourcePluginComponents<DataSourceApi<TQuery, TOptions>, TQuery, TOptions>;
+  components?: DataSourcePluginComponents;
 
   /**
    * static information about the datasource
    */
   meta?: DataSourcePluginMeta;
+}
 
-  /**
-   * Used by alerting to check if query contains template variables
-   */
-  targetContainsTemplate?(query: TQuery): boolean;
-
-  /**
-   * Used in explore
-   */
+export interface ExploreDataSourceApi<TQuery extends DataQuery = DataQuery> extends DataSourceApi {
   modifyQuery?(query: TQuery, action: QueryFixAction): TQuery;
-
-  /**
-   * Used in explore
-   */
-  getHighlighterExpression?(query: TQuery): string[];
-
-  /**
-   * Used in explore
-   */
+  getHighlighterExpression?(query: TQuery): string;
   languageProvider?: any;
 }
 
-export interface QueryEditorProps<
-  DSType extends DataSourceApi<TQuery, TOptions>,
-  TQuery extends DataQuery = DataQuery,
-  TOptions extends DataSourceJsonData = DataSourceJsonData
-> {
+export interface QueryEditorProps<DSType extends DataSourceApi, TQuery extends DataQuery> {
   datasource: DSType;
   query: TQuery;
   onRunQuery: () => void;
@@ -269,14 +193,16 @@ export enum DataSourceStatus {
   Disconnected,
 }
 
-export interface ExploreQueryFieldProps<
-  DSType extends DataSourceApi<TQuery, TOptions>,
-  TQuery extends DataQuery = DataQuery,
-  TOptions extends DataSourceJsonData = DataSourceJsonData
-> extends QueryEditorProps<DSType, TQuery, TOptions> {
+export interface ExploreQueryFieldProps<DSType extends DataSourceApi, TQuery extends DataQuery> {
+  datasource: DSType;
   datasourceStatus: DataSourceStatus;
+  query: TQuery;
+  error?: string | JSX.Element;
+  hint?: QueryHint;
   history: any[];
-  onHint?: (action: QueryFixAction) => void;
+  onExecuteQuery?: () => void;
+  onQueryChange?: (value: TQuery) => void;
+  onExecuteHint?: (action: QueryFixAction) => void;
 }
 
 export interface ExploreStartPageProps {
@@ -416,10 +342,6 @@ export interface QueryHint {
   fix?: QueryFix;
 }
 
-export interface MetricFindValue {
-  text: string;
-}
-
 export interface DataSourceJsonData {
   authType?: string;
   defaultRegion?: string;
@@ -464,7 +386,6 @@ export interface DataSourceInstanceSettings<T extends DataSourceJsonData = DataS
   jsonData: T;
   username?: string;
   password?: string; // when access is direct, for some legacy datasources
-  database?: string;
 
   /**
    * This is the full Authorization header if basic auth is ennabled.

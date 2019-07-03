@@ -10,7 +10,6 @@ import {
   FieldDisplayOptions,
   Field,
   FieldPropertiesEditor,
-  PanelOptionsGroup,
 } from '@grafana/ui';
 
 // Types
@@ -55,8 +54,7 @@ export class BarGaugePanelEditor extends PureComponent<PanelEditorProps<BarGauge
     return (
       <>
         <PanelOptionsGrid>
-          <PanelOptionsGroup title="Display">
-            <FieldDisplayEditor onChange={this.onDisplayOptionsChanged} value={fieldOptions} labelWidth={labelWidth} />
+          <FieldDisplayEditor onChange={this.onDisplayOptionsChanged} options={fieldOptions} labelWidth={labelWidth}>
             <div className="form-field">
               <FormLabel width={labelWidth}>Orientation</FormLabel>
               <Select
@@ -77,10 +75,14 @@ export class BarGaugePanelEditor extends PureComponent<PanelEditorProps<BarGauge
                 value={displayModes.find(item => item.value === options.displayMode)}
               />
             </div>
-          </PanelOptionsGroup>
-          <PanelOptionsGroup title="Field">
-            <FieldPropertiesEditor showMinMax={true} onChange={this.onDefaultsChange} value={fieldOptions.defaults} />
-          </PanelOptionsGroup>
+          </FieldDisplayEditor>
+
+          <FieldPropertiesEditor
+            title="Field"
+            showMinMax={true}
+            onChange={this.onDefaultsChange}
+            value={fieldOptions.defaults}
+          />
 
           <ThresholdsEditor onChange={this.onThresholdsChanged} thresholds={fieldOptions.thresholds} />
         </PanelOptionsGrid>

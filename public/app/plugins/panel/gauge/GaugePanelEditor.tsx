@@ -12,7 +12,6 @@ import {
   Field,
   FieldPropertiesEditor,
   Switch,
-  PanelOptionsGroup,
 } from '@grafana/ui';
 
 import { GaugeOptions } from './types';
@@ -61,12 +60,11 @@ export class GaugePanelEditor extends PureComponent<PanelEditorProps<GaugeOption
     return (
       <>
         <PanelOptionsGrid>
-          <PanelOptionsGroup title="Display">
-            <FieldDisplayEditor
-              onChange={this.onDisplayOptionsChanged}
-              value={fieldOptions}
-              labelWidth={this.labelWidth}
-            />
+          <FieldDisplayEditor
+            onChange={this.onDisplayOptionsChanged}
+            options={fieldOptions}
+            labelWidth={this.labelWidth}
+          >
             <Switch
               label="Labels"
               labelClass={`width-${this.labelWidth}`}
@@ -79,11 +77,14 @@ export class GaugePanelEditor extends PureComponent<PanelEditorProps<GaugeOption
               checked={showThresholdMarkers}
               onChange={this.onToggleThresholdMarkers}
             />
-          </PanelOptionsGroup>
+          </FieldDisplayEditor>
 
-          <PanelOptionsGroup title="Field">
-            <FieldPropertiesEditor showMinMax={true} onChange={this.onDefaultsChange} value={fieldOptions.defaults} />
-          </PanelOptionsGroup>
+          <FieldPropertiesEditor
+            title="Field"
+            showMinMax={true}
+            onChange={this.onDefaultsChange}
+            value={fieldOptions.defaults}
+          />
 
           <ThresholdsEditor onChange={this.onThresholdsChanged} thresholds={fieldOptions.thresholds} />
         </PanelOptionsGrid>
