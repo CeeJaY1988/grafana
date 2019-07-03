@@ -46,6 +46,8 @@ export class PanelCtrl {
     this.$scope = $scope;
     this.$timeout = $injector.get('$timeout');
     this.editorTabs = [];
+    this.dashboard = $scope.ctrl.dashboard;
+    this.panel = $scope.ctrl.panel;
     this.events = this.panel.events;
     this.timing = {}; // not used but here to not break plugins
 

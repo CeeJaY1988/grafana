@@ -1,0 +1,93 @@
+# # config file version
+apiVersion: 1
+
+#providers:
+# - name: 'default'
+#   orgId: 1
+#   folder: ''
+#   folderUid: ''
+#   type: file
+#   options:
+#     path: /var/lib/grafana/dashboards
+
+providers:
+- name: '1-availability'
+  orgId: 3
+  folder: '1. Beschikbaarheid'
+  type: file
+  disableDeletion: true
+  updateIntervalSeconds: 300
+  options:
+    path: data/dashboards/emt/1-availability
+
+- name: '2-history'
+  orgId: 3
+  folder: '2. Historiek'
+  type: file
+  disableDeletion: true
+  updateIntervalSeconds: 300
+  options:
+    path: data/dashboards/emt/2-history
+
+- name: '3-approval'
+  orgId: 3
+  folder: '3. Goedkeuren'
+  type: file
+  disableDeletion: true
+  updateIntervalSeconds: 300
+  options:
+    path: data/dashboards/emt/3-approval
+
+- name: '4-sla'
+  orgId: 3
+  folder: '4. SLA'
+  type: file
+  disableDeletion: true
+  updateIntervalSeconds: 300
+  options:
+    path: data/dashboards/emt/4-sla
+
+- name: '5-maintenance'
+  orgId: 3
+  folder: '5. Onderhoud'
+  type: file
+  disableDeletion: true
+  updateIntervalSeconds: 300
+  options:
+    path: data/dashboards/emt/5-maintenance
+
+- name: '6-analysis'
+  orgId: 3
+  folder: '6. Analyse'
+  type: file
+  disableDeletion: true
+  updateIntervalSeconds: 300
+  options:
+    path: data/dashboards/emt/6-analysis
+
+- name: '7-logs'
+  orgId: 3
+  folder: '7. Logs'
+  type: file
+  disableDeletion: true
+  updateIntervalSeconds: 300
+  options:
+    path: data/dashboards/emt/7-logs
+
+- name: '8-config'
+  orgId: 3
+  folder: '8. MPT groepen en eigenschappen'
+  type: file
+  disableDeletion: true
+  updateIntervalSeconds: 300
+  options:
+    path: data/dashboards/emt/8-config
+
+- name: '9-alerts'
+  orgId: 3
+  folder: '9. Alerts'
+  type: file
+  disableDeletion: true
+  updateIntervalSeconds: 300
+  options:
+    path: data/dashboards/emt/9-alerts

@@ -1,13 +1,14 @@
 import angular from 'angular';
 import * as fileExport from 'app/core/utils/file_export';
 import appEvents from 'app/core/app_events';
+import config from 'app/core/config';
 
 export class ExportDataModalCtrl {
   private data: any[];
   private panel: string;
   asRows = true;
-  dateTimeFormat = 'YYYY-MM-DDTHH:mm:ssZ';
-  excel = false;
+  dateTimeFormat = config.defaultExportDateTimeFormat;
+  excel = config.useExcelDialectAsDefaultExport;
 
   export() {
     if (this.panel === 'table') {

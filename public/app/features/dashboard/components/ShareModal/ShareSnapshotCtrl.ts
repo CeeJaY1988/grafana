@@ -1,5 +1,6 @@
 import angular from 'angular';
 import _ from 'lodash';
+import config from 'app/core/config';
 
 export class ShareSnapshotCtrl {
   /** @ngInject */
@@ -7,7 +8,7 @@ export class ShareSnapshotCtrl {
     $scope.snapshot = {
       name: $scope.dashboard.title,
       expires: 0,
-      timeoutSeconds: 4,
+      timeoutSeconds: config.defaultSnapshotTimeout,
     };
 
     $scope.step = 1;

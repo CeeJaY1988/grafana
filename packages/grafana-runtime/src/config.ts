@@ -40,6 +40,9 @@ export class GrafanaBootConfig {
   disableSanitizeHtml = false;
   theme: GrafanaTheme;
   pluginsToPreload: string[] = [];
+  useExcelDialectAsDefaultExport = false;
+  defaultSnapshotTimeout = 4;
+  defaultExportDateTimeFormat = '';
 
   constructor(options: GrafanaBootConfig) {
     this.theme = options.bootData.user.lightTheme ? getTheme(GrafanaThemeType.Light) : getTheme(GrafanaThemeType.Dark);
@@ -61,6 +64,7 @@ export class GrafanaBootConfig {
       viewersCanEdit: false,
       editorsCanAdmin: false,
       disableSanitizeHtml: false,
+      defaultExportDateTimeFormat: 'YYYY-MM-DDTHH:mm:ssZ',
     };
 
     extend(this, defaults, options);

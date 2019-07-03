@@ -136,7 +136,7 @@ class PluginPage extends PureComponent<Props, State> {
           pages.push({
             text: page.title,
             icon: page.icon,
-            url: path + '?page=' + page.id,
+            url: `${appSubUrl}${path}?page=${page.id}`,
             id: page.id,
           });
           if (!defaultPage) {
@@ -164,7 +164,7 @@ class PluginPage extends PureComponent<Props, State> {
       text: meta.name,
       img: meta.info.logos.large,
       subTitle: meta.info.author.name,
-      breadcrumbs: [{ title: 'Plugins', url: '/plugins' }],
+      breadcrumbs: [{ title: 'Plugins', url: appSubUrl + '/plugins' }],
       url: `${appSubUrl}${path}`,
       children: this.setActivePage(query.page as string, pages, defaultPage),
     };
