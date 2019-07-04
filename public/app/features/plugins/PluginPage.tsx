@@ -135,7 +135,7 @@ class PluginPage extends PureComponent<Props, State> {
           tabs.push({
             text: tab.title,
             icon: tab.icon,
-            url: path + '?tab=' + tab.id,
+            url: `${appSubUrl}${path}?tab=${tab.id}`,
             id: tab.id,
           });
           if (!defaultTab) {
@@ -163,7 +163,7 @@ class PluginPage extends PureComponent<Props, State> {
       text: meta.name,
       img: meta.info.logos.large,
       subTitle: meta.info.author.name,
-      breadcrumbs: [{ title: 'Plugins', url: '/plugins' }],
+      breadcrumbs: [{ title: 'Plugins', url: appSubUrl + '/plugins' }],
       url: `${appSubUrl}${path}`,
       children: this.setActiveTab(query.tab as string, tabs, defaultTab),
     };
